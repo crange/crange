@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 import sys
+import ujson
 
-from clang.cindex import Index, TranslationUnit
+from clang.cindex import Index, TranslationUnit, CursorKind
 from pprint import pprint
 from blist import blist
 from optparse import OptionParser, OptionGroup
@@ -16,7 +17,7 @@ class Crange:
     "Class Crange"
 
     def __init__(self):
-        self.ast = {}
+        self.ast = list()
         self.opts = Options()
 
     def get_diag_info(self, diag):
@@ -47,23 +48,34 @@ class Crange:
         else:
             children = [self.get_info(c, depth+1)
                         for c in node.get_children()]
- 
-        n = { 'id' : self.get_cursor_id(node),
-              'kind' : node.kind,
-              'usr' : node.get_usr(),
-              'spelling' : node.spelling,
-              'location' : node.location,
-              'extent.start' : node.extent.start,
-              'extent.end' : node.extent.end,
-              'is_definition' : node.is_definition(),
-              'definition id' : self.get_cursor_id(node.get_definition()),
-              'children' : children }
-        return n
+        n = {'loc'      : str(node.location.file) if node.location.file else None,
+            'loc.line' : node.location.line,
+            'loc.col'  : node.location.column,
+            'loc.offset' : node.location.offset,
+            'extent.start.line': node.extent.start.line,
+            'extent.start.col' : node.extent.start.column,
+            'extent.end.line'  : node.extent.end.line,
+            'extent.end.col'   : node.extent.end.column,
+            'kind'     : node.kind.name,
+            'type'     : node.type.kind.name,
+            'spelling' : node.spelling,
+            'display'  : node.displayname,
+            'def?'     : node.is_definition(),
+            'def' : node.get_definition().get_usr() if node.get_definition() else None,
+            'static?'  : node.is_static_method(),
+            'ref?'     : node.kind.is_reference(),
+            'ref'      : node.referenced.get_usr() if node.referenced else None,
+            'usr'      : node.get_usr()}
+        self.ast.append(n)
 
     def generate(self, args):
         index = Index.create()
         tu = index.parse(None, args)
-        nodes = self.get_info(tu.cursor)
+        self.get_info(tu.cursor)
+        f=open('tags.json', 'w')
+        f.write(ujson.dumps(self.ast))
+        f.close
+        
 
 if __name__ == '__main__':
     c=Crange()
