@@ -1,24 +1,38 @@
 #!/usr/bin/env python
 import sys
+import os
 import ujson
 
 from clang.cindex import Index, TranslationUnit, CursorKind
-from pprint import pprint
-from blist import blist
 from optparse import OptionParser, OptionGroup
 
+class SourceFile:
+    def __init__(self):
+        self.extensions = ['.c', '.h', '.C', '.H',
+                           '.c++', '.cc', '.cp', '.cpp', '.cxx',
+                           '.h++', '.hh', '.hp', '.hpp', '.hxx']
+        pass
+
+    def buildlist(self):
+        
+        pass    
+
+        
 class Options:
     def __init__(self):
-        self.showIDs = None
+        self.autoInclude = True
+        self.showIDs = False
+        self.verbose = False
         self.maxDepth = 0
 
-
+        
 class Crange:
     "Class Crange"
 
     def __init__(self):
         self.ast = list()
         self.opts = Options()
+        self.args = list()
 
     def get_diag_info(self, diag):
         return { 'severity' : diag.severity,
@@ -52,10 +66,10 @@ class Crange:
             'loc.line' : node.location.line,
             'loc.col'  : node.location.column,
             'loc.offset' : node.location.offset,
-            'extent.start.line': node.extent.start.line,
-            'extent.start.col' : node.extent.start.column,
-            'extent.end.line'  : node.extent.end.line,
-            'extent.end.col'   : node.extent.end.column,
+            'ext.start.line': node.extent.start.line,
+            'ext.start.col' : node.extent.start.column,
+            'ext.end.line'  : node.extent.end.line,
+            'ext.end.col'   : node.extent.end.column,
             'kind'     : node.kind.name,
             'type'     : node.type.kind.name,
             'spelling' : node.spelling,
@@ -68,11 +82,11 @@ class Crange:
             'usr'      : node.get_usr()}
         self.ast.append(n)
 
-    def generate(self, args):
+    def generate(self):
         index = Index.create()
         tu = index.parse(None, args)
         self.get_info(tu.cursor)
-        f=open('tags.json', 'w')
+        f=open(self.opts.outputFile, 'a')
         f.write(ujson.dumps(self.ast))
         f.close
         
@@ -80,17 +94,30 @@ class Crange:
 if __name__ == '__main__':
     c=Crange()
 
-    parser = OptionParser("usage: %prog [options] {filename} [clang-args*]")
-    parser.add_option("", "--show-ids", dest="showIDs",
+    parser = OptionParser("usage: %prog [options] {directory} [clang-args*]")
+    parser.add_option("-a", "--auto-include", dest="autoInclude",
+                      help="Automatically detect and add include paths (-Isrc/include).",
+                      default=True, action="store_true")
+    parser.add_option("-i", "--show-ids", dest="showIDs",
                       help="Don't compute cursor IDs (very slow)",
-                      default=False)
-    parser.add_option("", "--max-depth", dest="maxDepth",
+                      default=False, action="store_false")
+    parser.add_option("-d", "--max-depth", dest="maxDepth",
                       help="Limit cursor expansion to depth N",
-                      metavar="N", type=int, default=None)
+                      metavar="N", type="int", default=None)
+    parser.add_option("-o", "--output", dest="outputFile",
+                      help="Write tags to FILE",
+                      metavar="FILE", type="string", default="tags.json")
+    parser.add_option("-v", "--verbose", dest="verbose",
+                      help="Verbose mode",
+                      default=False, action="store_false")
     parser.disable_interspersed_args()
-    (c.opts, args) = parser.parse_args()
+    (c.opts, c.args) = parser.parse_args()
+    print c.opts
+    print c.args
+    if len(c.args) == 0:
+        parser.error('Invalid number of arguments')
 
-    if len(args) == 0:
-        parser.error('invalid number arguments')
-
-    c.generate(args)
+    if os.path.isdir(c.args[0]):
+        c.generate()
+    else:
+        parser.error("%s is not a directory" % c.args[0])
