@@ -2,28 +2,34 @@
 import sys
 import os
 import ujson
+import fnmatch
 
 from clang.cindex import Index, TranslationUnit, CursorKind
 from optparse import OptionParser, OptionGroup
 
 class SourceFile:
     def __init__(self):
-        self.extensions = ['.c', '.h', '.C', '.H',
-                           '.c++', '.cc', '.cp', '.cpp', '.cxx',
-                           '.h++', '.hh', '.hp', '.hpp', '.hxx']
+        self.extensions = ['*.c', '*.h', '*.C', '*.H',
+                           '*.c++', '*.cc', '*.cp', '*.cpp', '*.cxx',
+                           '*.h++', '*.hh', '*.hp', '*.hpp', '*.hxx']
         pass
 
-    def buildlist(self):
-        
-        pass    
+    def locate(self, root):
+        '''Locate all C/C++ files matching extensions attribute.
+        '''
+        for path, dirs, files in os.walk(os.path.abspath(root)):
+            for extension in self.extensions:
+                for filename in fnmatch.filter(files, extension):
+                    yield os.path.join(path, filename)
 
-        
+
 class Options:
     def __init__(self):
         self.autoInclude = True
         self.showIDs = False
         self.verbose = False
         self.maxDepth = 0
+        self.outputFile = 'tags.json'
 
         
 class Crange:
@@ -33,6 +39,10 @@ class Crange:
         self.ast = list()
         self.opts = Options()
         self.args = list()
+
+    def debug(self, message):
+        if self.opts.verbose:
+            print message
 
     def get_diag_info(self, diag):
         return { 'severity' : diag.severity,
@@ -62,7 +72,7 @@ class Crange:
         else:
             children = [self.get_info(c, depth+1)
                         for c in node.get_children()]
-        n = {'loc'      : str(node.location.file) if node.location.file else None,
+        n = {'loc'     : str(node.location.file) if node.location.file else None,
             'loc.line' : node.location.line,
             'loc.col'  : node.location.column,
             'loc.offset' : node.location.offset,
@@ -75,17 +85,22 @@ class Crange:
             'spelling' : node.spelling,
             'display'  : node.displayname,
             'def?'     : node.is_definition(),
-            'def' : node.get_definition().get_usr() if node.get_definition() else None,
+            'def'      : node.get_definition().get_usr() if node.get_definition() else None,
             'static?'  : node.is_static_method(),
             'ref?'     : node.kind.is_reference(),
             'ref'      : node.referenced.get_usr() if node.referenced else None,
             'usr'      : node.get_usr()}
         self.ast.append(n)
 
-    def generate(self):
-        index = Index.create()
-        tu = index.parse(None, args)
-        self.get_info(tu.cursor)
+    def generate(self, root):
+        sources = SourceFile()
+        index   = Index.create()
+        for source in sources.locate(root):
+            clang_line = [source, '-Iinclude']
+            self.debug(' '.join(clang_line))
+            tu = index.parse(None, clang_line)
+            self.get_info(tu.cursor)
+
         f=open(self.opts.outputFile, 'a')
         f.write(ujson.dumps(self.ast))
         f.close
@@ -97,10 +112,10 @@ if __name__ == '__main__':
     parser = OptionParser("usage: %prog [options] {directory} [clang-args*]")
     parser.add_option("-a", "--auto-include", dest="autoInclude",
                       help="Automatically detect and add include paths (-Isrc/include).",
-                      default=True, action="store_true")
+                      default=False, action="store_true")
     parser.add_option("-i", "--show-ids", dest="showIDs",
                       help="Don't compute cursor IDs (very slow)",
-                      default=False, action="store_false")
+                      default=False, action="store_true")
     parser.add_option("-d", "--max-depth", dest="maxDepth",
                       help="Limit cursor expansion to depth N",
                       metavar="N", type="int", default=None)
@@ -109,15 +124,14 @@ if __name__ == '__main__':
                       metavar="FILE", type="string", default="tags.json")
     parser.add_option("-v", "--verbose", dest="verbose",
                       help="Verbose mode",
-                      default=False, action="store_false")
+                      default=False, action="store_true")
     parser.disable_interspersed_args()
     (c.opts, c.args) = parser.parse_args()
-    print c.opts
-    print c.args
+
     if len(c.args) == 0:
         parser.error('Invalid number of arguments')
 
     if os.path.isdir(c.args[0]):
-        c.generate()
+        c.generate(c.args[0])
     else:
         parser.error("%s is not a directory" % c.args[0])
