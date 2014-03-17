@@ -50,9 +50,10 @@ class Crange:
     "Class Crange"
 
     def __init__(self):
-        self.opts = Options()
-        self.args = list()
-        self.ast  = list()
+        self.opts  = Options()
+        self.args  = list()
+        self.files = list()
+        self.ast   = dict()
         
     def debug(self, message):
         if self.opts.verbose:
@@ -79,8 +80,8 @@ class Crange:
                 return i
         cursor_list.append(cursor)
         return len(cursor_list) - 1
-    
-    # Node's hash key reference:
+
+    ### Node's hash key reference:
     #  l  : location line number
     #  c  : location column number
     #  o  : location offset
@@ -98,35 +99,38 @@ class Crange:
     #  r? : node is a reference?
     #  r  : USR of node's that is referenced.
     #  u  : USR of this node.
-    #
+    ###
+    def node_to_hash(self, node):
+        return {'l'  : node.location.line,
+                'c'  : node.location.column,
+                'o'  : node.location.offset,
+                'sl' : node.extent.start.line,
+                'sc' : node.extent.start.column,
+                'el' : node.extent.end.line,
+                'ec' : node.extent.end.column,
+                'k'  : node.kind.name,
+                't'  : node.type.kind.name,
+                's'  : node.spelling,
+                'd'  : node.displayname,
+                'd?' : node.is_definition(),
+                'df' : node.get_definition().get_usr() if node.get_definition() else None,
+                's?' : node.is_static_method(),
+                'r?' : node.kind.is_reference(),
+                'r'  : node.referenced.get_usr() if node.referenced else None,
+                'u'  : node.get_usr() }            
+    
     def get_info(self, node, depth=0):
         if self.opts.maxDepth is not None and depth >= self.opts.maxDepth:
             children = None
         else:
             children = [self.get_info(c, depth+1)
                         for c in node.get_children()]
+            
         loc = str(node.location.file) if node.location.file else None
-        n = {'l' : node.location.line,
-             'c' : node.location.column,
-             'o' : node.location.offset,
-             'sl' : node.extent.start.line,
-             'sc' : node.extent.start.column,
-             'el' : node.extent.end.line,
-             'ec' : node.extent.end.column,
-             'k' : node.kind.name,
-             't' : node.type.kind.name,
-             's' : node.spelling,
-             'd' : node.displayname,
-             'd?' : node.is_definition(),
-             'df' : node.get_definition().get_usr() if node.get_definition() else None,
-             's?' : node.is_static_method(),
-             'r?' : node.kind.is_reference(),
-             'r' : node.referenced.get_usr() if node.referenced else None,
-             'u' : node.get_usr() }
-        if loc not in self.ast:
-            self.ast[loc] = list()
         if loc is not None:
-            self.ast[loc].append(n)
+            if loc not in self.ast:
+                self.ast[loc] = list()
+            self.ast[loc].append(self.node_to_hash(node))
 
 
     def generate(self, root):
@@ -134,7 +138,7 @@ class Crange:
         tagdb = TagDB(self.opts.outputFile)
         index = Index.create()
         for source in sfo.locate(root):
-            self.ast = {}
+            self.ast.clear()
             clang_line = [source, '-Iinclude']
             self.debug(' '.join(clang_line))
             tu = index.parse(None, clang_line)
