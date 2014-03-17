@@ -20,7 +20,7 @@ class SourceFile:
         for path, dirs, files in os.walk(os.path.relpath(root)):
             for extension in self.extensions:
                 for filename in fnmatch.filter(files, extension):
-                    yield os.path.join(path, filename)
+                    yield os.path.join(os.path.relpath(path), filename)
 
 
 class TagDB:
