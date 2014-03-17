@@ -80,6 +80,25 @@ class Crange:
         cursor_list.append(cursor)
         return len(cursor_list) - 1
     
+    # Node's hash key reference:
+    #  l  : location line number
+    #  c  : location column number
+    #  o  : location offset
+    #  sl : extent start line
+    #  sc : extent start column
+    #  el : extent end line
+    #  ec : extent end column
+    #  k  : node kind name
+    #  t  : node type name
+    #  s  : spelling
+    #  d  : display
+    #  d? : node is a definition?
+    #  df : USR of node's definition.
+    #  s? : node is a static method?
+    #  r? : node is a reference?
+    #  r  : USR of node's that is referenced.
+    #  u  : USR of this node.
+    #
     def get_info(self, node, depth=0):
         if self.opts.maxDepth is not None and depth >= self.opts.maxDepth:
             children = None
@@ -87,24 +106,23 @@ class Crange:
             children = [self.get_info(c, depth+1)
                         for c in node.get_children()]
         loc = str(node.location.file) if node.location.file else None
-        n = {'loc' : loc,
-             'loc.line' : node.location.line,
-             'loc.col' : node.location.column,
-             'loc.offset' : node.location.offset,
-             'ext.start.line' : node.extent.start.line,
-             'ext.start.col' : node.extent.start.column,
-             'ext.end.line' : node.extent.end.line,
-             'ext.end.col' : node.extent.end.column,
-             'kind' : node.kind.name,
-             'type' : node.type.kind.name,
-             'spelling' : node.spelling,
-             'display' : node.displayname,
-             'def?' : node.is_definition(),
-             'def' : node.get_definition().get_usr() if node.get_definition() else None,
-             'static?' : node.is_static_method(),
-             'ref?' : node.kind.is_reference(),
-             'ref' : node.referenced.get_usr() if node.referenced else None,
-             'usr' : node.get_usr() }
+        n = {'l' : node.location.line,
+             'c' : node.location.column,
+             'o' : node.location.offset,
+             'sl' : node.extent.start.line,
+             'sc' : node.extent.start.column,
+             'el' : node.extent.end.line,
+             'ec' : node.extent.end.column,
+             'k' : node.kind.name,
+             't' : node.type.kind.name,
+             's' : node.spelling,
+             'd' : node.displayname,
+             'd?' : node.is_definition(),
+             'df' : node.get_definition().get_usr() if node.get_definition() else None,
+             's?' : node.is_static_method(),
+             'r?' : node.kind.is_reference(),
+             'r' : node.referenced.get_usr() if node.referenced else None,
+             'u' : node.get_usr() }
         if loc not in self.ast:
             self.ast[loc] = list()
         if loc is not None:
