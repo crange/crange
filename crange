@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 import sys
 import os
-import ujson
 import fnmatch
+import bsddb
+import ujson
 
 from clang.cindex import Index, TranslationUnit, CursorKind
 from optparse import OptionParser, OptionGroup
@@ -12,15 +13,28 @@ class SourceFile:
         self.extensions = ['*.c', '*.h', '*.C', '*.H',
                            '*.c++', '*.cc', '*.cp', '*.cpp', '*.cxx',
                            '*.h++', '*.hh', '*.hp', '*.hpp', '*.hxx']
-        pass
 
     def locate(self, root):
         '''Locate all C/C++ files matching extensions attribute.
         '''
-        for path, dirs, files in os.walk(os.path.abspath(root)):
+        for path, dirs, files in os.walk(os.path.relpath(root)):
             for extension in self.extensions:
                 for filename in fnmatch.filter(files, extension):
                     yield os.path.join(path, filename)
+
+
+class TagDB:
+    def __init__(self, outputFile='tags.db'):
+        self.db = bsddb.btopen(outputFile, 'c')
+
+    def __del__(self):
+        self.db.sync()
+        self.db.close()
+
+    def persist(self, ast):
+        for key,value in ast.iteritems():
+            if not self.db.has_key(key):
+                self.db[key] = ujson.dumps(value)
 
 
 class Options:
@@ -29,17 +43,17 @@ class Options:
         self.showIDs = False
         self.verbose = False
         self.maxDepth = 0
-        self.outputFile = 'tags.json'
+        self.outputFile = 'tags.db'
 
-        
+
 class Crange:
     "Class Crange"
 
     def __init__(self):
-        self.ast = list()
         self.opts = Options()
         self.args = list()
-
+        self.ast  = list()
+        
     def debug(self, message):
         if self.opts.verbose:
             print message
@@ -72,39 +86,42 @@ class Crange:
         else:
             children = [self.get_info(c, depth+1)
                         for c in node.get_children()]
-        n = {'loc'     : str(node.location.file) if node.location.file else None,
-            'loc.line' : node.location.line,
-            'loc.col'  : node.location.column,
-            'loc.offset' : node.location.offset,
-            'ext.start.line': node.extent.start.line,
-            'ext.start.col' : node.extent.start.column,
-            'ext.end.line'  : node.extent.end.line,
-            'ext.end.col'   : node.extent.end.column,
-            'kind'     : node.kind.name,
-            'type'     : node.type.kind.name,
-            'spelling' : node.spelling,
-            'display'  : node.displayname,
-            'def?'     : node.is_definition(),
-            'def'      : node.get_definition().get_usr() if node.get_definition() else None,
-            'static?'  : node.is_static_method(),
-            'ref?'     : node.kind.is_reference(),
-            'ref'      : node.referenced.get_usr() if node.referenced else None,
-            'usr'      : node.get_usr()}
-        self.ast.append(n)
+        loc = str(node.location.file) if node.location.file else None
+        n = {'loc' : loc,
+             'loc.line' : node.location.line,
+             'loc.col' : node.location.column,
+             'loc.offset' : node.location.offset,
+             'ext.start.line' : node.extent.start.line,
+             'ext.start.col' : node.extent.start.column,
+             'ext.end.line' : node.extent.end.line,
+             'ext.end.col' : node.extent.end.column,
+             'kind' : node.kind.name,
+             'type' : node.type.kind.name,
+             'spelling' : node.spelling,
+             'display' : node.displayname,
+             'def?' : node.is_definition(),
+             'def' : node.get_definition().get_usr() if node.get_definition() else None,
+             'static?' : node.is_static_method(),
+             'ref?' : node.kind.is_reference(),
+             'ref' : node.referenced.get_usr() if node.referenced else None,
+             'usr' : node.get_usr() }
+        if loc not in self.ast:
+            self.ast[loc] = list()
+        if loc is not None:
+            self.ast[loc].append(n)
+
 
     def generate(self, root):
-        sources = SourceFile()
-        index   = Index.create()
-        for source in sources.locate(root):
+        sfo   = SourceFile()
+        tagdb = TagDB(self.opts.outputFile)
+        index = Index.create()
+        for source in sfo.locate(root):
+            self.ast = {}
             clang_line = [source, '-Iinclude']
             self.debug(' '.join(clang_line))
             tu = index.parse(None, clang_line)
             self.get_info(tu.cursor)
-
-        f=open(self.opts.outputFile, 'a')
-        f.write(ujson.dumps(self.ast))
-        f.close
-        
+            tagdb.persist(self.ast)
 
 if __name__ == '__main__':
     c=Crange()
@@ -121,7 +138,7 @@ if __name__ == '__main__':
                       metavar="N", type="int", default=None)
     parser.add_option("-o", "--output", dest="outputFile",
                       help="Write tags to FILE",
-                      metavar="FILE", type="string", default="tags.json")
+                      metavar="FILE", type="string", default="tags.db")
     parser.add_option("-v", "--verbose", dest="verbose",
                       help="Verbose mode",
                       default=False, action="store_true")
