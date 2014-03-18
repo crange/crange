@@ -51,9 +51,9 @@ class Crange:
 
     def __init__(self):
         self.opts  = Options()
-        self.args  = list()
-        self.files = list()
-        self.ast   = dict()
+        self.args  = list()  # Arguments passed from the command line.
+        self.files = list()  # List of files already indexed in the current run.
+        self.ast   = dict()  # Dict containing list of nodes present in a source file.
         
     def debug(self, message):
         if self.opts.verbose:
@@ -128,9 +128,11 @@ class Crange:
             
         loc = str(node.location.file) if node.location.file else None
         if loc is not None:
-            if loc not in self.ast:
+            if loc not in self.files:
+                self.files.append(loc)
                 self.ast[loc] = list()
-            self.ast[loc].append(self.node_to_hash(node))
+            if loc in self.ast:
+                self.ast[loc].append(self.node_to_hash(node))
 
 
     def generate(self, root):
