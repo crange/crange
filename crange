@@ -3,6 +3,7 @@ import sys
 import os
 import fnmatch
 import bsddb
+import sqlite3
 import ujson
 
 from clang.cindex import Index, TranslationUnit, CursorKind
@@ -24,18 +25,40 @@ class SourceFile:
 
 
 class TagDB:
-    def __init__(self, outputFile='tags.db'):
-        self.db = bsddb.btopen(outputFile, 'c')
+    def __init__(self, outputFile):
+        self.db = sqlite3.connect(outputFile)
+        cursor = self.db.cursor()
+        cursor.execute("PRAGMA synchronous = OFF;")
+        cursor.execute("PRAGMA journal_mode = MEMORY;")
+        cursor.execute("""CREATE TABLE IF NOT EXISTS tags (
+        l   TEXT,
+        ln  INT,
+        c   INT,
+        o   INT,
+        sl  INT,
+        sc  INT,
+        el  INT,
+        ec  INT,
+        k   TEXT,
+        t   TEXT,
+        s   TEXT,
+        d   TEXT,
+        dd  INT,
+        df  TEXT,
+        ss  INT,
+        rr  INT,
+        r   TEXT,
+        u   TEXT);""")
+        self.db.commit()
 
     def __del__(self):
-        self.db.sync()
+        self.db.commit()
         self.db.close()
 
     def persist(self, ast):
-        for key,value in ast.iteritems():
-            if not self.db.has_key(key):
-                self.db[key] = ujson.dumps(value)
-
+        cursor = self.db.cursor()
+        cursor.executemany("INSERT INTO tags VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ast)
+        self.db.commit()
 
 class Options:
     def __init__(self):
@@ -52,8 +75,9 @@ class Crange:
     def __init__(self):
         self.opts  = Options()
         self.args  = list()  # Arguments passed from the command line.
-        self.files = list()  # List of files already indexed in the current run.
-        self.ast   = dict()  # Dict containing list of nodes present in a source file.
+        self.current_files   = list()  # List of files being indexed in the current translation unit.
+        self.persisted_files = list()  # List of files indexed and persisted in the current run.
+        self.ast   = list()  # Dict containing list of nodes present in a source file.
         
     def debug(self, message):
         if self.opts.verbose:
@@ -82,7 +106,7 @@ class Crange:
         return len(cursor_list) - 1
 
     ### Node's hash key reference:
-    #  l  : location line number
+    #  ln : location line number
     #  c  : location column number
     #  o  : location offset
     #  sl : extent start line
@@ -93,32 +117,35 @@ class Crange:
     #  t  : node type name
     #  s  : spelling
     #  d  : display
-    #  d? : node is a definition?
+    #  dd : node is a definition?
     #  df : USR of node's definition.
-    #  s? : node is a static method?
-    #  r? : node is a reference?
+    #  ss : node is a static method?
+    #  rr : node is a reference?
     #  r  : USR of node's that is referenced.
     #  u  : USR of this node.
     ###
-    def node_to_hash(self, node):
-        return {'l'  : node.location.line,
-                'c'  : node.location.column,
-                'o'  : node.location.offset,
-                'sl' : node.extent.start.line,
-                'sc' : node.extent.start.column,
-                'el' : node.extent.end.line,
-                'ec' : node.extent.end.column,
-                'k'  : node.kind.name,
-                't'  : node.type.kind.name,
-                's'  : node.spelling,
-                'd'  : node.displayname,
-                'd?' : node.is_definition(),
-                'df' : node.get_definition().get_usr() if node.get_definition() else None,
-                's?' : node.is_static_method(),
-                'r?' : node.kind.is_reference(),
-                'r'  : node.referenced.get_usr() if node.referenced else None,
-                'u'  : node.get_usr() }            
-    
+    def node_to_tuple(self, node):
+        definition = node.get_definition().get_usr() if node.get_definition() else None
+        referenced = node.referenced.get_usr() if node.referenced else None
+        return (str(node.location.file),
+                node.location.line,
+                node.location.column,
+                node.location.offset,
+                node.extent.start.line,
+                node.extent.start.column,
+                node.extent.end.line,
+                node.extent.end.column,
+                node.kind.name,
+                node.type.kind.name,
+                node.spelling,
+                node.displayname,
+                node.is_definition(),
+                definition,
+                node.is_static_method(),
+                node.kind.is_reference(),
+                referenced,
+                node.get_usr())
+
     def get_info(self, node, depth=0):
         if self.opts.maxDepth is not None and depth >= self.opts.maxDepth:
             children = None
@@ -128,11 +155,11 @@ class Crange:
             
         loc = str(node.location.file) if node.location.file else None
         if loc is not None:
-            if loc not in self.files:
-                self.files.append(loc)
-                self.ast[loc] = list()
-            if loc in self.ast:
-                self.ast[loc].append(self.node_to_hash(node))
+            if loc not in self.persisted_files:
+                if loc not in self.current_files:
+                    self.current_files.append(loc)
+            if loc in self.current_files:
+                self.ast.append(self.node_to_tuple(node))
 
 
     def generate(self, root):
@@ -140,12 +167,17 @@ class Crange:
         tagdb = TagDB(self.opts.outputFile)
         index = Index.create()
         for source in sfo.locate(root):
-            self.ast.clear()
             clang_line = [source, '-Iinclude']
             self.debug(' '.join(clang_line))
             tu = index.parse(None, clang_line)
             self.get_info(tu.cursor)
             tagdb.persist(self.ast)
+
+            # Cleaning up temporary lists.
+            self.persisted_files.extend(self.current_files)
+            self.current_files[:] = []
+            self.ast[:] = []
+
 
 if __name__ == '__main__':
     c=Crange()
