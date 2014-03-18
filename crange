@@ -76,6 +76,7 @@ class Options:
         self.showIDs = False
         self.verbose = False
         self.maxDepth = 0
+        self.jobs    = 1
         self.outputFile = 'tags.db'
 
 
@@ -195,7 +196,7 @@ if __name__ == '__main__':
 
     parser = OptionParser("usage: %prog [options] {directory} [clang-args*]")
     parser.add_option("-a", "--auto-include", dest="autoInclude",
-                      help="Automatically detect and add include paths (-Isrc/include).",
+                      help="Automatically detect and add include paths (-Isrc/include)",
                       default=False, action="store_true")
     parser.add_option("-i", "--show-ids", dest="showIDs",
                       help="Don't compute cursor IDs (very slow)",
@@ -204,10 +205,13 @@ if __name__ == '__main__':
                       help="Limit cursor expansion to depth N",
                       metavar="N", type="int", default=None)
     parser.add_option("-o", "--output", dest="outputFile",
-                      help="Write tags to FILE",
+                      help="Create tags database in FILE",
                       metavar="FILE", type="string", default="tags.db")
+    parser.add_option("-j", "--jobs", dest="jobs",
+                      help="Specifies the number of jobs to run simultaneously",
+                      metavar="JOBS", type="int", default=1)
     parser.add_option("-v", "--verbose", dest="verbose",
-                      help="Verbose mode",
+                      help="Enable verbose mode",
                       default=False, action="store_true")
     parser.disable_interspersed_args()
     (c.opts, c.args) = parser.parse_args()
