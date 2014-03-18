@@ -2,9 +2,7 @@
 import sys
 import os
 import fnmatch
-import bsddb
 import sqlite3
-import ujson
 
 from clang.cindex import Index, TranslationUnit, CursorKind
 from optparse import OptionParser, OptionGroup
@@ -29,29 +27,41 @@ class TagDB:
         self.db = sqlite3.connect(outputFile)
         cursor = self.db.cursor()
         cursor.execute("PRAGMA synchronous = OFF;")
-        cursor.execute("PRAGMA journal_mode = MEMORY;")
+        #cursor.execute("PRAGMA journal_mode = MEMORY;")
         cursor.execute("""CREATE TABLE IF NOT EXISTS tags (
-        l   TEXT,
-        ln  INT,
-        c   INT,
-        o   INT,
-        sl  INT,
-        sc  INT,
-        el  INT,
-        ec  INT,
-        k   TEXT,
-        t   TEXT,
-        s   TEXT,
-        d   TEXT,
-        dd  INT,
-        df  TEXT,
-        ss  INT,
-        rr  INT,
-        r   TEXT,
-        u   TEXT);""")
+        location   TEXT,
+        line       INT,
+        column     INT,
+        offset     INT,
+        start_line INT,
+        start_col  INT,
+        end_line   INT,
+        end_col    INT,
+        kind_name  TEXT,
+        type_name  TEXT,
+        spelling   TEXT,
+        display    TEXT,
+        is_def     INT,
+        def        TEXT,
+        is_static  INT,
+        is_ref     INT,
+        ref        TEXT,
+        usr        TEXT);""")
         self.db.commit()
 
+    def create_indexes(self):
+        cursor = self.db.cursor()
+        cursor.execute("CREATE INDEX IF NOT EXISTS location_index ON tags(location);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS location_line_index ON tags(location,line);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS kind_index ON tags(kind_name);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS type_index ON tags(type_name);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS spelling_index ON tags(spelling);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS def_index ON tags(def);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS ref_index ON tags(ref);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS usr_index ON tags(usr);")
+            
     def __del__(self):
+        self.create_indexes()
         self.db.commit()
         self.db.close()
 
@@ -105,25 +115,26 @@ class Crange:
         cursor_list.append(cursor)
         return len(cursor_list) - 1
 
-    ### Node's hash key reference:
-    #  ln : location line number
-    #  c  : location column number
-    #  o  : location offset
-    #  sl : extent start line
-    #  sc : extent start column
-    #  el : extent end line
-    #  ec : extent end column
-    #  k  : node kind name
-    #  t  : node type name
-    #  s  : spelling
-    #  d  : display
-    #  dd : node is a definition?
-    #  df : USR of node's definition.
-    #  ss : node is a static method?
-    #  rr : node is a reference?
-    #  r  : USR of node's that is referenced.
-    #  u  : USR of this node.
-    ###
+    ###### Node's key reference:
+    # 1.  location   : node's filename    
+    # 2.  line       : location line number
+    # 3.  column     : location column number
+    # 4.  offset     : location offset
+    # 5.  start_line : extent start line
+    # 6.  start_col  : extent start column
+    # 7.  end_line   : extent end line
+    # 8.  end_col    : extent end column
+    # 9.  kind_name  : node kind name
+    # 10. type_name  : node type name
+    # 11. spelling   : spelling
+    # 12. display    : display
+    # 13. is_def     : node is a definition?
+    # 14. def        : USR of node's definition.
+    # 15. is_static  : node is a static method?
+    # 16. is_ref     : node is a reference?
+    # 17. ref        : USR of node's that is referenced.
+    # 18. usr        : USR of this node.
+    ######
     def node_to_tuple(self, node):
         definition = node.get_definition().get_usr() if node.get_definition() else None
         referenced = node.referenced.get_usr() if node.referenced else None
