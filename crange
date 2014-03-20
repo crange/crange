@@ -6,6 +6,7 @@ import sqlite3
 
 from clang.cindex import Index, TranslationUnit, CursorKind
 from optparse import OptionParser, OptionGroup
+from multiprocessing import Pool
 
 class SourceFile:
     def __init__(self):
@@ -86,8 +87,6 @@ class Crange:
     def __init__(self):
         self.opts  = Options()
         self.args  = list()  # Arguments passed from the command line.
-        self.current_files   = list()  # List of files being indexed in the current translation unit.
-        self.persisted_files = list()  # List of files indexed and persisted in the current run.
         self.ast   = list()  # Dict containing list of nodes present in a source file.
         
     def debug(self, message):
@@ -167,59 +166,53 @@ class Crange:
             
         loc = str(node.location.file) if node.location.file else None
         if loc is not None:
-            if loc not in self.persisted_files:
-                if loc not in self.current_files:
-                    self.current_files.append(loc)
-            if loc in self.current_files:
-                self.ast.append(self.node_to_tuple(node))
+            self.ast.append(self.node_to_tuple(node))
 
 
-    def generate(self, root):
-        sfo   = SourceFile()
-        tagdb = TagDB(self.opts.outputFile)
-        index = Index.create()
-        for source in sfo.locate(root):
-            clang_line = [source, '-Iinclude']
-            self.debug(' '.join(clang_line))
-            tu = index.parse(None, clang_line)
-            self.get_info(tu.cursor)
-            tagdb.persist(self.ast)
+def worker(source, opts, args):
+    index  = Index.create()
+    c      = Crange()
+    c.opts = opts
+    c.args = args
 
-            # Cleaning up temporary lists.
-            self.persisted_files.extend(self.current_files)
-            self.current_files[:] = []
-            self.ast[:] = []
-
-
+    clang_line = [source, '-Iinclude']
+    c.debug(' '.join(clang_line))
+    tu = index.parse(None, clang_line)
+    c.get_info(tu.cursor)
+    return c.ast
+    
+def persist(ast):
+    tagdb = TagDB('tags.db')
+    print 'Persisting %s nodes' % len(ast)
+    if len(ast) > 0:
+        tagdb.persist(ast)
+    
 if __name__ == '__main__':
-    c=Crange()
-
     parser = OptionParser("usage: %prog [options] {directory} [clang-args*]")
-    parser.add_option("-a", "--auto-include", dest="autoInclude",
-                      help="Automatically detect and add include paths (-Isrc/include)",
-                      default=False, action="store_true")
-    parser.add_option("-i", "--show-ids", dest="showIDs",
-                      help="Don't compute cursor IDs (very slow)",
-                      default=False, action="store_true")
-    parser.add_option("-d", "--max-depth", dest="maxDepth",
-                      help="Limit cursor expansion to depth N",
-                      metavar="N", type="int", default=None)
-    parser.add_option("-o", "--output", dest="outputFile",
-                      help="Create tags database in FILE",
-                      metavar="FILE", type="string", default="tags.db")
-    parser.add_option("-j", "--jobs", dest="jobs",
-                      help="Specifies the number of jobs to run simultaneously",
-                      metavar="JOBS", type="int", default=1)
-    parser.add_option("-v", "--verbose", dest="verbose",
-                      help="Enable verbose mode",
-                      default=False, action="store_true")
+    parser.add_option("-a", "--auto-include", dest="autoInclude" ,default=False, action="store_true",
+                      help="Automatically detect and add include paths (-Isrc/include)")
+    parser.add_option("-i", "--show-ids", dest="showIDs", default=False, action="store_true",
+                      help="Don't compute cursor IDs (very slow)")
+    parser.add_option("-d", "--max-depth", dest="maxDepth", metavar="N", type="int", default=None,
+                      help="Limit cursor expansion to depth N")
+    parser.add_option("-o", "--output", dest="outputFile", metavar="FILE", type="string", default="tags.db",
+                      help="Create tags database in FILE")
+    parser.add_option("-j", "--jobs", dest="jobs", metavar="JOBS", type="int", default=1,
+                      help="Specifies the number of jobs to run simultaneously")
+    parser.add_option("-v", "--verbose", dest="verbose", default=False, action="store_true",
+                      help="Enable verbose mode")
     parser.disable_interspersed_args()
-    (c.opts, c.args) = parser.parse_args()
+    opts, args = parser.parse_args()
+    root = args[0]        
 
-    if len(c.args) == 0:
+    if len(args) == 0:
         parser.error('Invalid number of arguments')
 
-    if os.path.isdir(c.args[0]):
-        c.generate(c.args[0])
+    if not os.path.isdir(root):
+        parser.error("%s is not a directory" % root)
     else:
-        parser.error("%s is not a directory" % c.args[0])
+        sfo  = SourceFile()
+        pool = Pool(8)
+        res  = [pool.apply_async(worker, (s, opts, args), callback=persist)
+                for s in sfo.locate(root)]
+        [r.get() for r in res]
