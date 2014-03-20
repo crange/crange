@@ -6,7 +6,7 @@ import sqlite3
 
 from clang.cindex import Index, TranslationUnit, CursorKind
 from optparse import OptionParser, OptionGroup
-from multiprocessing import Pool
+from multiprocessing import Pool, Lock
 
 class SourceFile:
     def __init__(self):
@@ -180,11 +180,12 @@ def worker(source, opts, args):
     tu = index.parse(None, clang_line)
     c.get_info(tu.cursor)
     return c.ast
-    
+
+mutex = Lock()
+ 
 def persist(ast):
-    tagdb = TagDB('tags.db')
-    print 'Persisting %s nodes' % len(ast)
-    if len(ast) > 0:
+    tagdb = TagDB(opts.outputFile)
+    with mutex:
         tagdb.persist(ast)
     
 if __name__ == '__main__':
@@ -212,7 +213,7 @@ if __name__ == '__main__':
         parser.error("%s is not a directory" % root)
     else:
         sfo  = SourceFile()
-        pool = Pool(8)
+        pool = Pool(opts.jobs)
         res  = [pool.apply_async(worker, (s, opts, args), callback=persist)
                 for s in sfo.locate(root)]
         [r.get() for r in res]
