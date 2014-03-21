@@ -49,7 +49,6 @@ class TagDB:
         is_ref     INT,
         ref        TEXT,
         usr        TEXT);""")
-        self.db.commit()
 
     def create_indexes(self):
         cursor = self.db.cursor()
