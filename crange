@@ -171,7 +171,10 @@ class Crange:
             self.ast.append(self.node_to_tuple(node))
 
 
-def worker(source, opts, args):
+mutex = Lock()
+
+def worker(worker_params):
+    source, opts, args = worker_params            
     index  = Index.create()
     c      = Crange()
     c.opts = opts
@@ -181,14 +184,10 @@ def worker(source, opts, args):
     c.debug(' '.join(clang_line))
     tu = index.parse(None, clang_line)
     c.get_info(tu.cursor)
-    return list(c.ast)
-
-mutex = Lock()
-
-def persist(ast):
-    tagdb = TagDB()
     with mutex:
-        tagdb.persist(ast)
+        tagdb = TagDB(opts.outputFile)
+        tagdb.persist(c.ast)
+
     
 if __name__ == '__main__':
     parser = OptionParser("usage: %prog [options] {directory} [clang-args*]")
@@ -216,10 +215,10 @@ if __name__ == '__main__':
     else:
         sfo  = SourceFile()
         pool = Pool(opts.jobs)
-        res  = [pool.apply_async(worker, (s, opts, args), callback=persist)
-                for s in sfo.locate(root)]
+        worker_params = ((s, opts, args) for s in sfo.locate(root))
+        pool.map(worker, worker_params)
         pool.close()
         pool.join()
         
-        tagdb = TagDB()
+        tagdb = TagDB(opts.outputFile)
         tagdb.create_indexes()
