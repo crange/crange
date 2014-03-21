@@ -3,6 +3,7 @@ import sys
 import os
 import fnmatch
 import sqlite3
+import objgraph
 
 from clang.cindex import Index, TranslationUnit, CursorKind
 from optparse import OptionParser, OptionGroup
@@ -24,7 +25,7 @@ class SourceFile:
 
 
 class TagDB:
-    def __init__(self, outputFile):
+    def __init__(self, outputFile='tags.db'):
         self.db = sqlite3.connect(outputFile)
         cursor = self.db.cursor()
         cursor.execute("PRAGMA synchronous = OFF;")
@@ -60,12 +61,10 @@ class TagDB:
         cursor.execute("CREATE INDEX IF NOT EXISTS def_index ON tags(def);")
         cursor.execute("CREATE INDEX IF NOT EXISTS ref_index ON tags(ref);")
         cursor.execute("CREATE INDEX IF NOT EXISTS usr_index ON tags(usr);")
-            
-    def __del__(self):
-        self.create_indexes()
-        self.db.commit()
-        self.db.close()
 
+    def __del__(self):
+        self.db.close()
+    
     def persist(self, ast):
         cursor = self.db.cursor()
         cursor.executemany("INSERT INTO tags VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ast)
@@ -88,6 +87,9 @@ class Crange:
         self.opts  = Options()
         self.args  = list()  # Arguments passed from the command line.
         self.ast   = list()  # Dict containing list of nodes present in a source file.
+
+    def __del__(self):
+        self.ast[:] = []
         
     def debug(self, message):
         if self.opts.verbose:
@@ -179,12 +181,12 @@ def worker(source, opts, args):
     c.debug(' '.join(clang_line))
     tu = index.parse(None, clang_line)
     c.get_info(tu.cursor)
-    return c.ast
+    return list(c.ast)
 
 mutex = Lock()
- 
+
 def persist(ast):
-    tagdb = TagDB(opts.outputFile)
+    tagdb = TagDB()
     with mutex:
         tagdb.persist(ast)
     
@@ -216,4 +218,8 @@ if __name__ == '__main__':
         pool = Pool(opts.jobs)
         res  = [pool.apply_async(worker, (s, opts, args), callback=persist)
                 for s in sfo.locate(root)]
-        [r.get() for r in res]
+        pool.close()
+        pool.join()
+        
+        tagdb = TagDB()
+        tagdb.create_indexes()
