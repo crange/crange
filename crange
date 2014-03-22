@@ -173,7 +173,7 @@ class Crange:
 mutex = Lock()
 
 def worker(worker_params):
-    source, opts, args = worker_params            
+    source, opts, args = worker_params
     index  = Index.create()
     c      = Crange()
     c.opts = opts
@@ -185,7 +185,8 @@ def worker(worker_params):
     c.get_info(tu.cursor)
     with mutex:
         tagdb = TagDB(opts.outputFile)
-        tagdb.persist(c.ast)
+        tagdb.persist(tuple(c.ast))
+    c.ast[:] = []
 
     
 if __name__ == '__main__':
