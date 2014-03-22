@@ -7,7 +7,7 @@ import objgraph
 
 from clang.cindex import Index, TranslationUnit, CursorKind
 from optparse import OptionParser, OptionGroup
-from multiprocessing import Pool, Lock
+from multiprocessing import Pool, Lock, Manager
 
 class SourceFile:
     def __init__(self):
@@ -85,7 +85,9 @@ class Crange:
     def __init__(self):
         self.opts  = Options()
         self.args  = list()  # Arguments passed from the command line.
-        self.ast   = list()  # Dict containing list of nodes present in a source file.
+        self.ast   = list()  # List containing nodes present in a source file.
+        self.fileproxy = list()
+        self.files = list()  # List containing files collected in the current run.
 
     def __del__(self):
         self.ast[:] = []
@@ -167,26 +169,32 @@ class Crange:
             
         loc = str(node.location.file) if node.location.file else None
         if loc is not None:
-            self.ast.append(self.node_to_tuple(node))
+            if loc not in self.fileproxy:
+                self.ast.append(self.node_to_tuple(node))
+                if loc not in self.files:
+                    self.files.append(loc)
 
 
 mutex = Lock()
 
 def worker(worker_params):
-    source, opts, args = worker_params
+    source, opts, args, fileproxy = worker_params
     index  = Index.create()
     c      = Crange()
     c.opts = opts
     c.args = args
+    c.fileproxy = fileproxy
 
     clang_line = [source, '-Iinclude']
     c.debug(' '.join(clang_line))
     tu = index.parse(None, clang_line)
     c.get_info(tu.cursor)
     with mutex:
+        fileproxy.extend(c.files)
         tagdb = TagDB(opts.outputFile)
         tagdb.persist(tuple(c.ast))
     c.ast[:] = []
+    c.files[:] = []    
 
     
 if __name__ == '__main__':
@@ -215,7 +223,9 @@ if __name__ == '__main__':
     else:
         sfo  = SourceFile()
         pool = Pool(opts.jobs)
-        worker_params = ((s, opts, args) for s in sfo.locate(root))
+        manager   = Manager()
+        fileproxy = manager.list()
+        worker_params = ((s, opts, args, fileproxy) for s in sfo.locate(root))
         pool.map(worker, worker_params)
         pool.close()
         pool.join()
