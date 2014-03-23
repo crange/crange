@@ -189,12 +189,12 @@ def worker(worker_params):
     c.debug(' '.join(clang_line))
     tu = index.parse(None, clang_line)
     c.get_info(tu.cursor)
+    fileproxy.extend(c.files)
     with mutex:
-        fileproxy.extend(c.files)
         tagdb = TagDB(opts.outputFile)
         tagdb.persist(tuple(c.ast))
-    c.ast[:] = []
-    c.files[:] = []    
+    #c.ast[:] = []
+    #c.files[:] = []    
 
     
 if __name__ == '__main__':
