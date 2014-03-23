@@ -4,6 +4,7 @@ import os
 import fnmatch
 import sqlite3
 import objgraph
+import time
 
 from clang.cindex import Index, TranslationUnit, CursorKind
 from optparse import OptionParser, OptionGroup
@@ -49,9 +50,6 @@ class TagDB:
         is_ref     INT,
         ref        TEXT,
         usr        TEXT);""")
-
-    def create_indexes(self):
-        cursor = self.db.cursor()
         cursor.execute("CREATE INDEX IF NOT EXISTS location_index ON tags(location);")
         cursor.execute("CREATE INDEX IF NOT EXISTS location_line_index ON tags(location,line);")
         cursor.execute("CREATE INDEX IF NOT EXISTS kind_index ON tags(kind_name);")
@@ -86,8 +84,6 @@ class Crange:
         self.opts  = Options()
         self.args  = list()  # Arguments passed from the command line.
         self.ast   = list()  # List containing nodes present in a source file.
-        self.fileproxy = list()
-        self.files = list()  # List containing files collected in the current run.
 
     def __del__(self):
         self.ast[:] = []
@@ -169,32 +165,42 @@ class Crange:
             
         loc = str(node.location.file) if node.location.file else None
         if loc is not None:
-            if loc not in self.fileproxy:
-                self.ast.append(self.node_to_tuple(node))
-                if loc not in self.files:
-                    self.files.append(loc)
-
+            self.ast.append(self.node_to_tuple(node))
 
 mutex = Lock()
 
 def worker(worker_params):
-    source, opts, args, fileproxy = worker_params
+    timings = {'start': time.time()}
+    source, opts, args = worker_params
     index  = Index.create()
     c      = Crange()
     c.opts = opts
     c.args = args
-    c.fileproxy = fileproxy
 
     clang_line = [source, '-Iinclude']
-    c.debug(' '.join(clang_line))
+    timings['objinit'] =  time.time()
+    
     tu = index.parse(None, clang_line)
+    timings['tuparse'] =  time.time()
+    
     c.get_info(tu.cursor)
-    fileproxy.extend(c.files)
+    timings['getinfo'] =  time.time()
     with mutex:
+        timings['mutex'] =  time.time()
         tagdb = TagDB(opts.outputFile)
+        timings['dbinit'] =  time.time()
         tagdb.persist(tuple(c.ast))
-    #c.ast[:] = []
-    #c.files[:] = []    
+        timings['dbcommit'] =  time.time()
+        
+    c.debug("%s {objinit: %.2f, tuparse: %.2f, getinfo: %.2f, mutex: %.2f, dbinit: %.2f, dbcommit: %.2f, total: %.2f}"
+            % (source,
+               timings['objinit']  - timings['start'],
+               timings['tuparse']  - timings['objinit'],
+               timings['getinfo']  - timings['tuparse'],
+               timings['mutex']    - timings['getinfo'],
+               timings['dbinit']   - timings['mutex'],
+               timings['dbcommit'] - timings['dbinit'],
+               time.time() - timings['start']))
 
     
 if __name__ == '__main__':
@@ -223,12 +229,7 @@ if __name__ == '__main__':
     else:
         sfo  = SourceFile()
         pool = Pool(opts.jobs)
-        manager   = Manager()
-        fileproxy = manager.list()
-        worker_params = ((s, opts, args, fileproxy) for s in sfo.locate(root))
+        worker_params = ((s, opts, args) for s in sfo.locate(root))
         pool.map(worker, worker_params)
         pool.close()
         pool.join()
-        
-        tagdb = TagDB(opts.outputFile)
-        tagdb.create_indexes()
