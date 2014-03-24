@@ -50,6 +50,14 @@ class TagDB:
         is_ref     INT,
         ref        TEXT,
         usr        TEXT);""")
+        #cursor.execute("CREATE INDEX IF NOT EXISTS location_index ON tags(location);")
+        #self.db.commit()
+
+    def __del__(self):
+        self.db.close()
+
+    def create_index(self):
+        cursor = self.db.cursor()
         cursor.execute("CREATE INDEX IF NOT EXISTS location_index ON tags(location);")
         cursor.execute("CREATE INDEX IF NOT EXISTS location_line_index ON tags(location,line);")
         cursor.execute("CREATE INDEX IF NOT EXISTS kind_index ON tags(kind_name);")
@@ -57,10 +65,8 @@ class TagDB:
         cursor.execute("CREATE INDEX IF NOT EXISTS spelling_index ON tags(spelling);")
         cursor.execute("CREATE INDEX IF NOT EXISTS def_index ON tags(def);")
         cursor.execute("CREATE INDEX IF NOT EXISTS ref_index ON tags(ref);")
-        cursor.execute("CREATE INDEX IF NOT EXISTS usr_index ON tags(usr);")
-
-    def __del__(self):
-        self.db.close()
+        cursor.execute("CREATE INDEX IF NOT EXISTS usr_index ON tags(usr);")            
+        self.db.commit()
     
     def persist(self, ast):
         cursor = self.db.cursor()
@@ -83,10 +89,10 @@ class Crange:
     def __init__(self):
         self.opts  = Options()
         self.args  = list()  # Arguments passed from the command line.
-        self.ast   = list()  # List containing nodes present in a source file.
+        self.ast   = dict()  # List containing nodes present in a source file.
 
     def __del__(self):
-        self.ast[:] = []
+        self.ast.clear()
         
     def debug(self, message):
         if self.opts.verbose:
@@ -165,8 +171,13 @@ class Crange:
             
         loc = str(node.location.file) if node.location.file else None
         if loc is not None:
-            self.ast.append(self.node_to_tuple(node))
+            if loc not in self.ast:
+                self.ast[loc] = list()
+            self.ast[loc].append(self.node_to_tuple(node))
 
+
+tagdb = TagDB('tags.db')
+indexed_files = set()
 
 def dbkeeper(queue, opts):
     while True:
@@ -174,8 +185,11 @@ def dbkeeper(queue, opts):
         if ast == 0:
             break
         else:
-            tagdb = TagDB(opts.outputFile)
-            tagdb.persist(tuple(c.ast))
+            for loc, nodes in ast.iteritems():
+                if loc not in indexed_files:
+                    print "Indexing %s nodes for %s" % (len(nodes), loc)
+                    indexed_files.add(loc)
+                    tagdb.persist(nodes)
 
 def worker(worker_params):
     source, queue, opts, args = worker_params
@@ -187,7 +201,8 @@ def worker(worker_params):
     clang_line = [source, '-Iinclude']
     tu = index.parse(None, clang_line)
     c.get_info(tu.cursor)
-    queue.put(c.ast)
+    if len(c.ast) > 0:
+        queue.put(c.ast)
     c.debug(' '.join(clang_line))
 
 def spawn_workers(opts, args):
@@ -236,3 +251,6 @@ if __name__ == '__main__':
         parser.error("%s is not a directory" % root)
     else:
         spawn_workers(opts, args)
+        print "Generating indexes"
+        tagdb = TagDB(opts.outputFile)
+        tagdb.create_index()
