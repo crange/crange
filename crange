@@ -8,7 +8,7 @@ import time
 
 from clang.cindex import Index, TranslationUnit, CursorKind
 from optparse import OptionParser, OptionGroup
-from multiprocessing import Pool, Lock, Manager
+from multiprocessing import Pool, Lock, Manager, Queue
 
 class SourceFile:
     def __init__(self):
@@ -167,42 +167,50 @@ class Crange:
         if loc is not None:
             self.ast.append(self.node_to_tuple(node))
 
-mutex = Lock()
+
+def dbkeeper(queue, opts):
+    while True:
+        ast = queue.get()
+        if ast == 0:
+            break
+        else:
+            tagdb = TagDB(opts.outputFile)
+            tagdb.persist(tuple(c.ast))
 
 def worker(worker_params):
-    timings = {'start': time.time()}
-    source, opts, args = worker_params
+    source, queue, opts, args = worker_params
     index  = Index.create()
     c      = Crange()
     c.opts = opts
     c.args = args
 
     clang_line = [source, '-Iinclude']
-    timings['objinit'] =  time.time()
-    
     tu = index.parse(None, clang_line)
-    timings['tuparse'] =  time.time()
-    
     c.get_info(tu.cursor)
-    timings['getinfo'] =  time.time()
-    with mutex:
-        timings['mutex'] =  time.time()
-        tagdb = TagDB(opts.outputFile)
-        timings['dbinit'] =  time.time()
-        tagdb.persist(tuple(c.ast))
-        timings['dbcommit'] =  time.time()
-        
-    c.debug("%s {objinit: %.2f, tuparse: %.2f, getinfo: %.2f, mutex: %.2f, dbinit: %.2f, dbcommit: %.2f, total: %.2f}"
-            % (source,
-               timings['objinit']  - timings['start'],
-               timings['tuparse']  - timings['objinit'],
-               timings['getinfo']  - timings['tuparse'],
-               timings['mutex']    - timings['getinfo'],
-               timings['dbinit']   - timings['mutex'],
-               timings['dbcommit'] - timings['dbinit'],
-               time.time() - timings['start']))
+    queue.put(c.ast)
+    c.debug(' '.join(clang_line))
 
-    
+def spawn_workers(opts, args):
+    root = args[0]
+    sfo  = SourceFile()
+    pool = Pool(opts.jobs)
+    manager = Manager()
+    queue   = manager.Queue()
+
+    # Fire dbkeeper process.
+    pool.apply_async(dbkeeper, (queue, opts))
+
+    # Then fire AST worker processes.
+    worker_params = ((s, queue, opts, args) for s in sfo.locate(root))
+    pool.map(worker, worker_params)
+
+    # Kill the dbkeeper loop.
+    queue.put(0)
+
+    # Close and reap the worker processes.
+    pool.close()
+    pool.join()
+
 if __name__ == '__main__':
     parser = OptionParser("usage: %prog [options] {directory} [clang-args*]")
     parser.add_option("-a", "--auto-include", dest="autoInclude" ,default=False, action="store_true",
@@ -227,9 +235,4 @@ if __name__ == '__main__':
     if not os.path.isdir(root):
         parser.error("%s is not a directory" % root)
     else:
-        sfo  = SourceFile()
-        pool = Pool(opts.jobs)
-        worker_params = ((s, opts, args) for s in sfo.locate(root))
-        pool.map(worker, worker_params)
-        pool.close()
-        pool.join()
+        spawn_workers(opts, args)
