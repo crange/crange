@@ -187,14 +187,14 @@ indexed_files = set()
 def dbkeeper(queue, opts):
     while True:
         ast = queue.get()
-        if ast == 0:
-            break
-        else:
+        if ast is not 0:
             for loc, nodes in ast.iteritems():
                 if loc not in indexed_files:
-                    print "Indexing %s nodes for %s (qsize: %s)" % (len(nodes), loc, queue.qsize())
+                    print "Indexing %s (nodes: %s, qsize: %s)" % (loc, len(nodes), queue.qsize())
                     indexed_files.add(loc)
                     tagdb.persist(nodes)
+        else:
+            break
 
 def worker(worker_params):
     source, count, queue, opts, args = worker_params
@@ -210,7 +210,7 @@ def worker(worker_params):
             queue.put(c.ast)
     except Exception as e:
         print "Error parsing %s: %s" % (source, e.message)
-    c.debug("%s (%s)" % (source, count+1))
+    c.debug("Parsing %s (count: %s)" % (source, count+1))
 
 def spawn_workers(opts, args):
     root = args[0]
