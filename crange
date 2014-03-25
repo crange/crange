@@ -187,23 +187,25 @@ def dbkeeper(queue, opts):
         else:
             for loc, nodes in ast.iteritems():
                 if loc not in indexed_files:
-                    print "Indexing %s nodes for %s" % (len(nodes), loc)
+                    print "Indexing %s nodes for %s (qsize: %s)" % (len(nodes), loc, queue.qsize())
                     indexed_files.add(loc)
                     tagdb.persist(nodes)
 
 def worker(worker_params):
-    source, queue, opts, args = worker_params
+    source, count, queue, opts, args = worker_params
     index  = Index.create()
     c      = Crange()
     c.opts = opts
     c.args = args
-
     clang_line = [source, '-Iinclude']
-    tu = index.parse(None, clang_line)
-    c.get_info(tu.cursor)
-    if len(c.ast) > 0:
-        queue.put(c.ast)
-    c.debug(' '.join(clang_line))
+    try:
+        tu = index.parse(None, clang_line)
+        c.get_info(tu.cursor)
+        if len(c.ast) > 0:
+            queue.put(c.ast)
+    except Exception as e:
+        print "Error parsing %s: %s" % (source, e.message)
+    c.debug("%s (%s)" % (source, count+1))
 
 def spawn_workers(opts, args):
     root = args[0]
@@ -216,7 +218,7 @@ def spawn_workers(opts, args):
     pool.apply_async(dbkeeper, (queue, opts))
 
     # Then fire AST worker processes.
-    worker_params = ((s, queue, opts, args) for s in sfo.locate(root))
+    worker_params = ((s, count, queue, opts, args) for count,s in enumerate(sfo.locate(root)))
     pool.map(worker, worker_params)
 
     # Kill the dbkeeper loop.
