@@ -50,8 +50,7 @@ class TagDB:
         is_ref     INT,
         ref        TEXT,
         usr        TEXT);""")
-        #cursor.execute("CREATE INDEX IF NOT EXISTS location_index ON tags(location);")
-        #self.db.commit()
+        self.db.commit()
 
     def __del__(self):
         self.db.close()
