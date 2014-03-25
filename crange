@@ -161,14 +161,20 @@ class Crange:
                 referenced,
                 node.get_usr())
 
+    def crangepath(self, loc):
+        crpath = os.path.relpath(loc)
+        if crpath.startswith('../'):
+            crpath = os.path.realpath(loc)
+        return crpath
+
     def get_info(self, node, depth=0):
         if self.opts.maxDepth is not None and depth >= self.opts.maxDepth:
             children = None
         else:
             children = [self.get_info(c, depth+1)
                         for c in node.get_children()]
-            
-        loc = str(node.location.file) if node.location.file else None
+
+        loc = self.crangepath(str(node.location.file)) if node.location.file else None
         if loc is not None:
             if loc not in self.ast:
                 self.ast[loc] = list()
