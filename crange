@@ -208,6 +208,7 @@ def worker(worker_params):
         c.get_info(tu.cursor)
         if len(c.ast) > 0:
             queue.put(c.ast)
+            c.ast.clear()
     except Exception as e:
         print "Error parsing %s: %s" % (source, e.message)
     c.debug("Parsing %s (count: %s)" % (source, count+1))
