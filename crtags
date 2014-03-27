@@ -82,8 +82,8 @@ class Options:
         self.outputFile = 'tags.db'
 
 
-class Crange:
-    "Class Crange"
+class CrTags:
+    "Class CrTags"
 
     def __init__(self):
         self.opts  = Options()
@@ -199,7 +199,7 @@ def dbkeeper(queue, opts):
 def worker(worker_params):
     source, count, queue, opts, args = worker_params
     index  = Index.create()
-    c      = Crange()
+    c      = CrTags()
     c.opts = opts
     c.args = args
     clang_line = [source, '-Iinclude']
