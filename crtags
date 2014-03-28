@@ -142,10 +142,10 @@ class CrTags:
     # 17. ref        : USR of node's that is referenced.
     # 18. usr        : USR of this node.
     ######
-    def node_to_tuple(self, node):
+    def node_to_tuple(self, loc, node):
         definition = node.get_definition().get_usr() if node.get_definition() else None
         referenced = node.referenced.get_usr() if node.referenced else None
-        return (str(node.location.file),
+        return (loc,
                 node.location.line,
                 node.location.column,
                 node.location.offset,
@@ -166,7 +166,7 @@ class CrTags:
 
     def crangepath(self, loc):
         crpath = os.path.relpath(loc)
-        if crpath.startswith('../'):
+        if '..' in crpath:
             crpath = os.path.realpath(loc)
         return crpath
 
@@ -181,7 +181,7 @@ class CrTags:
         if loc is not None:
             if loc not in self.ast:
                 self.ast[loc] = list()
-            self.ast[loc].append(self.node_to_tuple(node))
+            self.ast[loc].append(self.node_to_tuple(loc, node))
 
 
 tagdb = TagDB('tags.db')
