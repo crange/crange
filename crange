@@ -19,7 +19,7 @@ class Tag:
     
     def find(self, name):
         cursor = self.db.cursor()
-        cursor.execute("SELECT location, line, kind_name, type_name, spelling, display, usr FROM tags WHERE spelling=? AND is_def=1", (name,))
+        cursor.execute("SELECT location, line, kind_name, type_name, spelling, display, usr FROM tags WHERE spelling=?", (name,))
         return cursor.fetchall()
         
     def find_refs(self, name):
