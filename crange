@@ -24,7 +24,7 @@ class Tag:
         
     def find_refs(self, name):
         cursor = self.db.cursor()
-        cursor.execute("SELECT location, line, kind_name, type_name, spelling, display, ref FROM tags WHERE def IN (SELECT usr FROM tags WHERE spelling=?) AND def <> '' AND is_def=0", (name,))
+        cursor.execute("SELECT location, line, kind_name, type_name, spelling, display, ref FROM tags WHERE ref IN (SELECT def FROM tags WHERE spelling=?) AND ref <> '' AND usr='' AND kind_name <> 'UNEXPOSED_EXPR' AND is_def=0", (name,))
         return cursor.fetchall()
 
     def find_kinds(self):
