@@ -9,7 +9,7 @@ from optparse import OptionParser, OptionGroup
 class Tag:
     def __init__(self, dbFile='tags.db'):
         self.db = sqlite3.connect(dbFile)
-        self.db.row_factory = sqlite3.Row
+        self.headers = ("Location", "Line", "Kind", "Type", "Spelling", "Display", "USR")
         cursor = self.db.cursor()
         cursor.execute("PRAGMA synchronous = OFF;")
         cursor.execute("PRAGMA journal_mode = MEMORY;")
@@ -19,7 +19,12 @@ class Tag:
     
     def find(self, name):
         cursor = self.db.cursor()
-        cursor.execute("SELECT location, line, kind_name, type_name, spelling, display, usr FROM tags WHERE spelling=?", (name,))
+        cursor.execute("SELECT location, line, kind_name, type_name, spelling, display, usr FROM tags WHERE spelling=? AND is_def=1", (name,))
+        return cursor.fetchall()
+        
+    def find_refs(self, name):
+        cursor = self.db.cursor()
+        cursor.execute("SELECT location, line, kind_name, type_name, spelling, display, ref FROM tags WHERE def IN (SELECT usr FROM tags WHERE spelling=?) AND def <> '' AND is_def=0", (name,))
         return cursor.fetchall()
 
     def find_kinds(self):
@@ -41,14 +46,17 @@ class Crange:
         pass
                     
     def process(self, opts, args):
-        res = "Not found"    
+        res = ""    
         if opts.tagListKinds:
             res = tabulate(self.tag.find_kinds(), headers=["Kinds"])
         elif opts.tagListTypes:
             res = tabulate(self.tag.find_types(), headers=["Types"])
         elif len(args) > 0:
-            res = tabulate(self.tag.find(args[0]), headers=["Location", "Line", "Kind", "Type", "Spelling", "Display", "USR"])
-        print res
+            if opts.tagRefs:
+                res = tabulate(self.tag.find_refs(args[0]), headers=self.tag.headers)
+            else:
+                res = tabulate(self.tag.find(args[0]), headers=self.tag.headers)
+        print "Not found" if (not res or res.isspace()) else res
 
 if __name__ == '__main__':
     parser = OptionParser("usage: %prog [options] identifier")
