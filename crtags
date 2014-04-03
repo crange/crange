@@ -3,7 +3,6 @@ import sys
 import os
 import fnmatch
 import sqlite3
-import objgraph
 import time
 
 from clang.cindex import Index, TranslationUnit, CursorKind
