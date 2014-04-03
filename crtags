@@ -62,6 +62,7 @@ class TagDB:
         cursor.execute("CREATE INDEX IF NOT EXISTS kind_index ON tags(kind_name);")
         cursor.execute("CREATE INDEX IF NOT EXISTS type_index ON tags(type_name);")
         cursor.execute("CREATE INDEX IF NOT EXISTS spelling_index ON tags(spelling);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS display_index ON tags(display);")
         cursor.execute("CREATE INDEX IF NOT EXISTS is_def_index ON tags(is_def);")
         cursor.execute("CREATE INDEX IF NOT EXISTS def_index ON tags(def);")
         cursor.execute("CREATE INDEX IF NOT EXISTS is_static_index ON tags(is_static);")
