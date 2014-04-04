@@ -1,0 +1,79 @@
+#!/usr/bin/env python
+import os
+
+from multiprocessing import Pool, Manager, Queue
+from clang.cindex import Index, TranslationUnit, CursorKind
+from crange import *
+
+def dbkeeper(queue, opts):
+    tagdb = TagDB(opts.outputFile)
+    indexed_files = set()
+    while True:
+        ast = queue.get()
+        if ast is not 0:
+            for loc, nodes in ast.iteritems():
+                if loc not in indexed_files:
+                    print "Indexing %s (nodes: %s, qsize: %s)" % (loc, len(nodes), queue.qsize())
+                    indexed_files.add(loc)
+                    tagdb.persist(nodes)
+        else:
+            break
+
+def worker(worker_params):
+    source, count, queue, opts, args = worker_params
+    index  = Index.create()
+    c      = CrTags()
+    c.opts = opts
+    c.args = args
+    clang_line = [source, '-Iinclude']
+    try:
+        tu = index.parse(None, clang_line)
+        c.get_info(tu.cursor)
+        if len(c.ast) > 0:
+            queue.put(c.ast)
+            c.ast.clear()
+        c.debug("Parsing %s (count: %s)" % (source, count+1))
+    except Exception as e:
+        print "Error parsing %s: %s" % (source, e.message)
+
+def spawn_workers(opts, args):
+    root = args[0]
+    sfo  = SourceFile()
+    pool = Pool(opts.jobs)
+    manager = Manager()
+    queue   = manager.Queue()
+
+    try:
+        # Fire dbkeeper process.
+        pool.apply_async(dbkeeper, (queue, opts))
+
+        # Then fire AST worker processes.
+        worker_params = ((s, count, queue, opts, args) for count,s in enumerate(sfo.locate(root)))
+        pool.map(worker, worker_params)
+
+        # Kill the dbkeeper loop.
+        queue.put(0)
+
+        # Close and reap the worker processes.
+        pool.close()
+        pool.join()
+    except KeyboardInterrupt:
+        print "Terminating workers"
+        pool.terminate()
+        pool.join()
+
+if __name__ == '__main__':
+    parser = crtags_parser()
+    opts, args = parser.parse_args()
+    root = args[0]        
+
+    if len(args) == 0:
+        parser.error('Invalid number of arguments')
+
+    if not os.path.isdir(root):
+        parser.error("%s is not a directory" % root)
+    else:
+        spawn_workers(opts, args)
+        print "Generating indexes"
+        tagdb = TagDB(opts.outputFile)
+        tagdb.create_index()

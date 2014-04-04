@@ -1,10 +1,16 @@
+import sys
 
 #: Version info (major, minor, maintenance, status)
-VERSION = (0, 0, 1)
+VERSION = (0, 1, 0)
 STATUS = ''
 __version__ = ('%d.%d.%d' % VERSION[0:3]) + STATUS
 
-import sys as _sys
+if sys.version_info[0:2] < (2, 6):
+    raise RuntimeError('Python 2.6.x or higher is required!')
 
-if _sys.version_info[0:2] < (2, 4):
-    raise RuntimeError('Python 2.4.x or higher is required!')
+from .crange import Crange
+from .crtags import CrTags
+from .sourcefile import SourceFile
+from .tag import Tag
+from .tagdb import TagDB
+from .options import *
