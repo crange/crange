@@ -16,4 +16,4 @@ The source metadata collected by Crange can help with building tools
 to provide cross-referencing, syntax highlighting, code folding and
 deep source code search.
 
-Full documentation is available at: http://crange.readthedocs.org
+Full documentation is available at: http://crange.github.io
