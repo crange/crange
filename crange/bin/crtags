@@ -13,10 +13,11 @@ def dbkeeper(queue, opts):
         if ast is not 0:
             for loc, nodes in ast.iteritems():
                 if loc not in indexed_files:
-                    print "Indexing %s (nodes: %s, qsize: %s)" % (loc, len(nodes), queue.qsize())
+                    print "Indexing %s (nodes: %s, qsize: %s)" % (loc, len(nodes), queue.qsize() + 1)
                     indexed_files.add(loc)
                     tagdb.persist(nodes)
         else:
+            tagdb.create_index()
             break
 
 def worker(worker_params):
@@ -74,6 +75,3 @@ if __name__ == '__main__':
         parser.error("%s is not a directory" % root)
     else:
         spawn_workers(opts, args)
-        print "Generating indexes"
-        tagdb = TagDB(opts.outputFile)
-        tagdb.create_index()
