@@ -49,4 +49,3 @@ class TagDB:
     def persist(self, ast):
         cursor = self.db.cursor()
         cursor.executemany("INSERT INTO tags VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", ast)
-        self.db.commit()
