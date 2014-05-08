@@ -82,15 +82,15 @@ Search all declarations for identifier named tty_open
 Search all references for identifier named tty_open
 
     $ crange -r device_create
-    Location                                            Line  Kind           Type             Spelling  Display        USR
-    ------------------------------------------------  ------  -------------  -------------  ----------  -------------  ------------------
-    drivers/dca/dca-sysfs.c                               41  DECL_REF_EXPR  FUNCTIONPROTO              device_create  c:@F@device_create
-    drivers/dca/dca-sysfs.c                               41  CALL_EXPR      POINTER                    device_create  c:@F@device_create
-    drivers/dca/dca-sysfs.c                               70  DECL_REF_EXPR  FUNCTIONPROTO              device_create  c:@F@device_create
-    drivers/dca/dca-sysfs.c                               70  CALL_EXPR      POINTER                    device_create  c:@F@device_create
-    drivers/scsi/pmcraid.c                              5397  DECL_REF_EXPR  FUNCTIONPROTO              device_create  c:@F@device_create
-    drivers/scsi/pmcraid.c                              5397  CALL_EXPR      POINTER                    device_create  c:@F@device_create
-    drivers/scsi/osst.c                                 5791  DECL_REF_EXPR  FUNCTIONPROTO              device_create  c:@F@device_create
+    Location                     Line  Kind           Type             Spelling  Display        USR
+    -------------------------  ------  -------------  -------------  ----------  -------------  ------------------
+    drivers/dca/dca-sysfs.c        41  DECL_REF_EXPR  FUNCTIONPROTO              device_create  c:@F@device_create
+    drivers/dca/dca-sysfs.c        41  CALL_EXPR      POINTER                    device_create  c:@F@device_create
+    drivers/dca/dca-sysfs.c        70  DECL_REF_EXPR  FUNCTIONPROTO              device_create  c:@F@device_create
+    drivers/dca/dca-sysfs.c        70  CALL_EXPR      POINTER                    device_create  c:@F@device_create
+    drivers/scsi/pmcraid.c       5397  DECL_REF_EXPR  FUNCTIONPROTO              device_create  c:@F@device_create
+    drivers/scsi/pmcraid.c       5397  CALL_EXPR      POINTER                    device_create  c:@F@device_create
+    drivers/scsi/osst.c          5791  DECL_REF_EXPR  FUNCTIONPROTO              device_create  c:@F@device_create
     ...
 
 Performance
