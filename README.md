@@ -3,9 +3,9 @@ Crange
 
 Synopsis
 --------
-  crtags [options] {directory} [clang-args*]
+    crtags [options] {directory} [clang-args*]
 
-  crange [options] identifier
+    crange [options] identifier
 
 Description
 -----------
@@ -56,14 +56,14 @@ Example usage
 -------------
 **Generating tags database for Linux 3.13.5**
 
-  $ cd linux-3.13.5
-  $ crtags -v -j 32 .
-  Parsing fs/xfs/xfs_bmap_btree.c (count: 1)
-  Indexing fs/xfs/xfs_bmap_btree.c (nodes: 379, qsize: 0)
-  ...
-  Parsing sound/soc/codecs/ak4641.h (count: 34348)
-  Generating indexes
-  $  
+    $ cd linux-3.13.5
+    $ crtags -v -j 32 .
+    Parsing fs/xfs/xfs_bmap_btree.c (count: 1)
+    Indexing fs/xfs/xfs_bmap_btree.c (nodes: 379, qsize: 0)
+    ...
+    Parsing sound/soc/codecs/ak4641.h (count: 34348)
+    Generating indexes
+    $  
 
 This would create a new file named tags.db containing all the
 identified tags.
@@ -72,26 +72,26 @@ identified tags.
 
 Search all declarations for identifier named tty_open
 
-  $ crange device_create
-  Location                  Line  Kind           Type           Spelling       Display                                                                           USR
-  ----------------------  ------  -------------  -------------  -------------  --------------------------------------------------------------------------------  ------------------
-  include/linux/device.h     942  FUNCTION_DECL  FUNCTIONPROTO  device_create  device_create(struct class *, struct device *, dev_t, void *, const char *, ...)  c:@F@device_create
-  drivers/base/core.c       1754  FUNCTION_DECL  FUNCTIONPROTO  device_create  device_create(struct class *, struct device *, dev_t, void *, const char *, ...)  c:@F@device_create
-  $ 
+    $ crange device_create
+    Location                  Line  Kind           Type           Spelling       Display                                                                           USR
+    ----------------------  ------  -------------  -------------  -------------  --------------------------------------------------------------------------------  ------------------
+    include/linux/device.h     942  FUNCTION_DECL  FUNCTIONPROTO  device_create  device_create(struct class *, struct device *, dev_t, void *, const char *, ...)  c:@F@device_create
+    drivers/base/core.c       1754  FUNCTION_DECL  FUNCTIONPROTO  device_create  device_create(struct class *, struct device *, dev_t, void *, const char *, ...)  c:@F@device_create
+    $ 
 
 Search all references for identifier named tty_open
 
-  $ crange -r device_create
-  Location                                            Line  Kind           Type             Spelling  Display        USR
-  ------------------------------------------------  ------  -------------  -------------  ----------  -------------  ------------------
-  drivers/dca/dca-sysfs.c                               41  DECL_REF_EXPR  FUNCTIONPROTO              device_create  c:@F@device_create
-  drivers/dca/dca-sysfs.c                               41  CALL_EXPR      POINTER                    device_create  c:@F@device_create
-  drivers/dca/dca-sysfs.c                               70  DECL_REF_EXPR  FUNCTIONPROTO              device_create  c:@F@device_create
-  drivers/dca/dca-sysfs.c                               70  CALL_EXPR      POINTER                    device_create  c:@F@device_create
-  drivers/scsi/pmcraid.c                              5397  DECL_REF_EXPR  FUNCTIONPROTO              device_create  c:@F@device_create
-  drivers/scsi/pmcraid.c                              5397  CALL_EXPR      POINTER                    device_create  c:@F@device_create
-  drivers/scsi/osst.c                                 5791  DECL_REF_EXPR  FUNCTIONPROTO              device_create  c:@F@device_create
-  ...
+    $ crange -r device_create
+    Location                                            Line  Kind           Type             Spelling  Display        USR
+    ------------------------------------------------  ------  -------------  -------------  ----------  -------------  ------------------
+    drivers/dca/dca-sysfs.c                               41  DECL_REF_EXPR  FUNCTIONPROTO              device_create  c:@F@device_create
+    drivers/dca/dca-sysfs.c                               41  CALL_EXPR      POINTER                    device_create  c:@F@device_create
+    drivers/dca/dca-sysfs.c                               70  DECL_REF_EXPR  FUNCTIONPROTO              device_create  c:@F@device_create
+    drivers/dca/dca-sysfs.c                               70  CALL_EXPR      POINTER                    device_create  c:@F@device_create
+    drivers/scsi/pmcraid.c                              5397  DECL_REF_EXPR  FUNCTIONPROTO              device_create  c:@F@device_create
+    drivers/scsi/pmcraid.c                              5397  CALL_EXPR      POINTER                    device_create  c:@F@device_create
+    drivers/scsi/osst.c                                 5791  DECL_REF_EXPR  FUNCTIONPROTO              device_create  c:@F@device_create
+    ...
 
 Performance
 -----------
