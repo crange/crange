@@ -105,7 +105,9 @@ Installaion
 -----------
 
     $ sudo python setup.py install
+
 or
+
     $ sudo pip install crange
 
 
