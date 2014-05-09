@@ -70,7 +70,7 @@ identified tags.
 
 **Searching tags**
 
-Search all declarations for identifier named tty_open
+Search all declarations for identifier named device_create
 
     $ crange device_create
     Location                  Line  Kind           Type           Spelling       Display                                                                           USR
@@ -79,7 +79,7 @@ Search all declarations for identifier named tty_open
     drivers/base/core.c       1754  FUNCTION_DECL  FUNCTIONPROTO  device_create  device_create(struct class *, struct device *, dev_t, void *, const char *, ...)  c:@F@device_create
     $ 
 
-Search all references for identifier named tty_open
+Search all references for identifier named device_create
 
     $ crange -r device_create
     Location                     Line  Kind           Type             Spelling  Display        USR
