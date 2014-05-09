@@ -1,7 +1,7 @@
 import sys
 
 #: Version info (major, minor, maintenance, status)
-VERSION = (0, 1, 0)
+VERSION = (0, 1, 1)
 STATUS = ''
 __version__ = ('%d.%d.%d' % VERSION[0:3]) + STATUS
 

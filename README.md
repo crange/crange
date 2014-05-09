@@ -101,6 +101,14 @@ size 614MB) took a little less than 7 hours (415m10.974s) on 32 CPU
 Xeon server with 16GB of memory and 32 jobs. The generated tags.db
 file was 22GB in size and contained 60,461,329 unique identifiers.
 
+Installaion
+-----------
+
+    $ sudo python setup.py install
+or
+    $ sudo pip install crange
+
+
 Also see
 --------
 

@@ -9,13 +9,13 @@ except ImportError:
 
 setup(
     name ="crange",
-    version = "0.1.0",
+    version = "0.1.1",
     description = "Crange is a tool to index and cross-reference C/C++ source code.",
     keywords = "crange, clang, llvm, parser, index, cross-reference, xref",
     author = "Anurag Patel",
     author_email = "gnurag@gmail.com",
     url = "https://github.com/crange/crange",
-    download_url = 'http://github.com/crange/crange/downloads',
+    download_url = 'https://github.com/crange/crange/releases',
     license = "BSD",
     packages = [
         "crange"
