@@ -118,3 +118,8 @@ Also see
 * https://github.com/trolldbois/python-clang/tree/master/tests/cindex
 * https://docs.python.org/2/library/multiprocessing.html
 * http://clang.llvm.org/doxygen/group__CINDEX.html
+
+The End
+-------
+
+![](http://imgs.xkcd.com/comics/standards.png)
