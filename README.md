@@ -39,6 +39,8 @@ Command line options
 |-j JOBS, --jobs=JOBS     | Specifies the number of jobs to run simultaneously        |
 |-v, --verbose            | Enable verbose mode                                       |
 
+Note: crtags will at least create 2 jobs if the -j option is skipped.
+
 *crange*
 
 | Option                          | Description                                       |

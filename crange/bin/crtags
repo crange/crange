@@ -40,7 +40,10 @@ def worker(worker_params):
 def spawn_workers(opts, args):
     root = args[0]
     sfo  = SourceFile()
-    pool = Pool(opts.jobs)
+    if opts.jobs <= 2:
+        pool = Pool(2)
+    else:
+        pool = Pool(opts.jobs)
     manager = Manager()
     queue   = manager.Queue()
 
