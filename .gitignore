@@ -4,3 +4,7 @@ build
 dist
 *.egg
 .*.swp
+bin
+include
+lib
+lib64
