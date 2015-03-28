@@ -13,7 +13,7 @@ Crange is a tool to index and cross-reference C/C++ source code. It
 can be used to generate tags database that can help with:
 
 * Identifier definitions
-* Identifier declaraions
+* Identifier declarations
 * References
 * Expressions
 * Operators
@@ -38,6 +38,8 @@ Command line options
 |-d FILE, --database=FILE | Create tags in database FILE                              |
 |-j JOBS, --jobs=JOBS     | Specifies the number of jobs to run simultaneously        |
 |-v, --verbose            | Enable verbose mode                                       |
+
+Note: crtags will at least create 2 jobs if the -j option is skipped.
 
 *crange*
 
