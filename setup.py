@@ -9,7 +9,7 @@ except ImportError:
 
 setup(
     name ="crange",
-    version = "0.1.1",
+    version = "0.1.2",
     description = "Crange is a tool to index and cross-reference C/C++ source code.",
     keywords = "crange, clang, llvm, parser, index, cross-reference, xref",
     author = "Anurag Patel",
@@ -25,8 +25,8 @@ setup(
         "crange/bin/crtags"
     ],
     install_requires = [
-        "clang",
-        "tabulate"
+        "clang>=3.5",
+        "tabulate>=0.7"
     ],
     classifiers = [
         'Intended Audience :: Developers',
