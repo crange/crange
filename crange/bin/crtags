@@ -69,11 +69,11 @@ def spawn_workers(opts, args):
 if __name__ == '__main__':
     parser = crtags_parser()
     opts, args = parser.parse_args()
-    root = args[0]        
 
     if len(args) == 0:
         parser.error('Invalid number of arguments')
 
+    root = args[0]        
     if not os.path.isdir(root):
         parser.error("%s is not a directory" % root)
     else:
